@@ -391,12 +391,46 @@ class SpeedPowerUp {
   }
 }
 
+// ── Power-up: Escudo ──────────────────────────────────────────────────────────
+class ShieldPowerUp {
+  constructor(x, y) {
+    this.x = x;
+    this.y = y;
+    this.radius = 10;
+    this.dead = false;
+    this.life = 10; // segundos antes de desaparecer
+  }
+
+  update(dt) {
+    this.life -= dt;
+    if (this.life <= 0) this.dead = true;
+  }
+
+  draw() {
+    const alpha = this.life < 2 ? 0.3 + 0.7 * (this.life / 2) : 1;
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.strokeStyle = '#0f0';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.fillStyle = '#0f0';
+    ctx.font = 'bold 14px monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('E', this.x, this.y);
+    ctx.restore();
+  }
+}
+
 // ── Estado del juego ──────────────────────────────────────────────────────────
 let ship, bullets, asteroids, shootingStars, particles, powerUps;
 let score, lives, level;
 let state;      // 'playing' | 'dead' | 'gameover'
 let deadTimer;
-let speedTimer; // tiempo restante del power-up Velocidad
+let speedTimer;  // tiempo restante del power-up Velocidad
+let shieldTimer; // tiempo restante del power-up Escudo
 let meteorTimer;
 
 function spawnAsteroids(count) {
@@ -423,6 +457,7 @@ function initGame() {
   level       = 1;
   state       = 'playing';
   speedTimer  = 0;
+  shieldTimer = 0;
   meteorTimer = rand(5, 9);
   spawnAsteroids(4);
 }
@@ -445,6 +480,7 @@ function killShip() {
   ship.dead = true;
   lives--;
   speedTimer = 0;
+  shieldTimer = 0;
   if (lives <= 0) {
     state = 'gameover';
   } else {
@@ -507,6 +543,9 @@ function update(dt) {
         if (Math.random() < 0.2) {
           powerUps.push(new SpeedPowerUp(a.x, a.y));
         }
+        if (Math.random() < 0.12) {
+          powerUps.push(new ShieldPowerUp(a.x, a.y));
+        }
       }
     }
     for (const s of shootingStars) {
@@ -526,16 +565,39 @@ function update(dt) {
   powerUps.forEach(p => p.update(dt));
   powerUps = powerUps.filter(p => !p.dead);
   if (speedTimer > 0) speedTimer -= dt;
+  if (shieldTimer > 0) shieldTimer -= dt;
   for (const p of powerUps) {
     if (!p.dead && dist(ship, p) < ship.radius + p.radius) {
       p.dead = true;
-      speedTimer = 5;
+      if (p instanceof ShieldPowerUp) shieldTimer = 6;
+      else speedTimer = 5;
     }
   }
   powerUps = powerUps.filter(p => !p.dead);
 
-  // Nave vs asteroide
-  if (ship.invincible <= 0) {
+  // Nave vs asteroide / estrella fugaz
+  if (shieldTimer > 0) {
+    // El escudo destruye lo que toca la burbuja
+    const SHIELD_RADIUS = ship.radius + 8;
+    const fragments = [];
+    for (const a of asteroids) {
+      if (!a.dead && dist(ship, a) < SHIELD_RADIUS + a.radius * 0.82) {
+        a.dead = true;
+        score += POINTS[a.size];
+        explode(a.x, a.y, a.size * 5);
+        fragments.push(...a.split());
+      }
+    }
+    asteroids = asteroids.filter(a => !a.dead).concat(fragments);
+    for (const s of shootingStars) {
+      if (!s.dead && dist(ship, s) < SHIELD_RADIUS + s.radius * 0.82) {
+        s.dead = true;
+        score += 150;
+        explode(s.x, s.y, 10);
+      }
+    }
+    shootingStars = shootingStars.filter(s => !s.dead);
+  } else if (ship.invincible <= 0) {
     for (const a of asteroids) {
       if (dist(ship, a) < ship.radius + a.radius * 0.82) {
         killShip();
@@ -593,6 +655,24 @@ function drawHUD() {
     ctx.font = 'bold 14px monospace';
     ctx.fillText(`VELOCIDAD ${speedTimer.toFixed(1)}s`, 14, 48);
   }
+
+  if (shieldTimer > 0) {
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#0f0';
+    ctx.font = 'bold 14px monospace';
+    ctx.fillText(`ESCUDO ${shieldTimer.toFixed(1)}s`, 14, speedTimer > 0 ? 68 : 48);
+  }
+}
+
+function drawShield() {
+  if (shieldTimer <= 0 || ship.dead) return;
+  // Parpadeo cuando queda poca duración
+  if (shieldTimer < 1.5 && Math.floor(shieldTimer * 8) % 2 === 0) return;
+  ctx.strokeStyle = 'rgba(0, 255, 0, 0.7)';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.arc(ship.x, ship.y, ship.radius + 8, 0, Math.PI * 2);
+  ctx.stroke();
 }
 
 function drawOverlay(title, sub) {
@@ -615,6 +695,7 @@ function draw() {
   bullets.forEach(b => b.draw());
   powerUps.forEach(p => p.draw());
   ship.draw();
+  drawShield();
 
   drawHUD();
 
