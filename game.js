@@ -30,12 +30,16 @@ const rand  = (min, max) => min + Math.random() * (max - min);
 const randInt = (min, max) => Math.floor(rand(min, max + 1));
 
 // ── Skins de nave ─────────────────────────────────────────────────────────────
+// `scale` multiplica el tamaño del casco; `scoreMultiplier` multiplica los
+// puntos obtenidos mientras esa nave está seleccionada.
 const SHIP_SKINS = [
   {
     name: 'CLASICA',
     color: '#fff',
     nose: 21,
     flame: -8,
+    scale: 1,
+    scoreMultiplier: 1,
     points: [[20, 0], [-12, -9], [-7, 0], [-12, 9]],
   },
   {
@@ -43,6 +47,8 @@ const SHIP_SKINS = [
     color: '#00e5ff',
     nose: 22,
     flame: -10,
+    scale: 1,
+    scoreMultiplier: 1,
     points: [[21, 0], [7, -6], [-7, -9], [-14, -4], [-6, 0], [-14, 4], [-7, 9], [7, 6]],
   },
   {
@@ -50,6 +56,8 @@ const SHIP_SKINS = [
     color: '#ffbf4d',
     nose: 20,
     flame: -10,
+    scale: 1,
+    scoreMultiplier: 1,
     points: [[19, 0], [3, -5], [-4, -13], [-11, -10], [-8, -3], [-16, 0], [-8, 3], [-11, 10], [-4, 13], [3, 5]],
   },
   {
@@ -57,6 +65,8 @@ const SHIP_SKINS = [
     color: '#49b6ff',
     nose: 23,
     flame: -14,
+    scale: 1,
+    scoreMultiplier: 1,
     points: [[22, 0], [14, -4], [4, -5], [-7, -11], [-14, -10], [-10, -3], [-16, 0], [-10, 3], [-14, 10], [-7, 11], [4, 5], [14, 4]],
   },
   {
@@ -64,6 +74,8 @@ const SHIP_SKINS = [
     color: '#ffc857',
     nose: 24,
     flame: -16,
+    scale: 1,
+    scoreMultiplier: 1,
     points: [[23, 0], [15, -4], [-8, -4], [-11, -9], [-16, -9], [-14, -3], [-20, -3], [-18, 0], [-20, 3], [-14, 3], [-16, 9], [-11, 9], [-8, 4], [15, 4]],
   },
   {
@@ -71,7 +83,18 @@ const SHIP_SKINS = [
     color: '#ff5c77',
     nose: 23,
     flame: -13,
+    scale: 1,
+    scoreMultiplier: 1,
     points: [[22, 0], [9, -5], [2, -12], [-3, -12], [-1, -5], [-9, -4], [-17, -10], [-14, -2], [-20, 0], [-14, 2], [-17, 10], [-9, 4], [-1, 5], [-3, 12], [2, 12], [9, 5]],
+  },
+  {
+    name: 'ACORAZADO',
+    color: '#b26bff',
+    nose: 23,
+    flame: -18,
+    scale: 2,
+    scoreMultiplier: 2,
+    points: [[23, 0], [15, -5], [3, -6], [1, -14], [-7, -14], [-5, -6], [-12, -10], [-18, -6], [-13, 0], [-18, 6], [-12, 10], [-5, 6], [-7, 14], [1, 14], [3, 6], [15, 5]],
   },
 ];
 const SKIN_STORAGE_KEY = 'asteroids-skin';
@@ -309,13 +332,17 @@ class ShootingStar {
 class Ship {
   constructor() { this.reset(); }
 
+  // Radio de colisión según el tamaño del casco seleccionado.
+  get radius() {
+    return 12 * SHIP_SKINS[skinIndex].scale;
+  }
+
   reset() {
     this.x      = W / 2;
     this.y      = H / 2;
     this.angle  = -Math.PI / 2;
     this.vx     = 0;
     this.vy     = 0;
-    this.radius = 12;
     this.thrusting     = false;
     this.invincible    = 3;
     this.shootCooldown = 0;
@@ -350,7 +377,8 @@ class Ship {
   tryShoot() {
     if (this.shootCooldown > 0 || this.dead) return [];
     this.shootCooldown = 0.2;
-    const NOSE = SHIP_SKINS[skinIndex].nose;
+    const skin = SHIP_SKINS[skinIndex];
+    const NOSE = skin.nose * skin.scale;
     const ox = this.x + Math.cos(this.angle) * NOSE;
     const oy = this.y + Math.sin(this.angle) * NOSE;
     if (tripleShotTimer > 0) {
@@ -377,14 +405,14 @@ class Ship {
     ctx.lineWidth   = 1.5;
     ctx.lineJoin    = 'round';
 
-    drawShipShape(skin);
+    drawShipShape(skin, skin.scale);
 
     // Llama del propulsor
     if (this.thrusting && Math.random() > 0.35) {
       ctx.beginPath();
-      ctx.moveTo(skin.flame, -4);
-      ctx.lineTo(skin.flame - rand(6, 14), 0);
-      ctx.lineTo(skin.flame, 4);
+      ctx.moveTo(skin.flame * skin.scale, -4 * skin.scale);
+      ctx.lineTo(skin.flame * skin.scale - rand(6, 14) * skin.scale, 0);
+      ctx.lineTo(skin.flame * skin.scale, 4 * skin.scale);
       ctx.strokeStyle = 'rgba(255, 130, 0, 0.85)';
       ctx.stroke();
     }
@@ -546,6 +574,11 @@ function changeSkin() {
   }
 }
 
+// Suma puntos aplicando el multiplicador de la nave seleccionada.
+function addScore(base) {
+  score += base * SHIP_SKINS[skinIndex].scoreMultiplier;
+}
+
 function spawnAsteroids(count) {
   const SAFE_DIST = 130;
   for (let i = 0; i < count; i++) {
@@ -655,7 +688,7 @@ function update(dt) {
       if (!a.dead && !b.dead && dist(b, a) < a.radius) {
         b.dead = true;
         a.dead = true;
-        score += POINTS[a.size];
+        addScore(POINTS[a.size]);
         explode(a.x, a.y, a.size * 5);
         newAsteroids.push(...a.split());
         if (Math.random() < 0.2) {
@@ -672,7 +705,7 @@ function update(dt) {
       if (!s.dead && !b.dead && dist(b, s) < s.radius) {
         b.dead = true;
         s.dead = true;
-        score += 150;
+        addScore(150);
         explode(s.x, s.y, 10);
       }
     }
@@ -706,7 +739,7 @@ function update(dt) {
     for (const a of asteroids) {
       if (!a.dead && dist(ship, a) < SHIELD_RADIUS + a.radius * 0.82) {
         a.dead = true;
-        score += POINTS[a.size];
+        addScore(POINTS[a.size]);
         explode(a.x, a.y, a.size * 5);
         fragments.push(...a.split());
       }
@@ -715,7 +748,7 @@ function update(dt) {
     for (const s of shootingStars) {
       if (!s.dead && dist(ship, s) < SHIELD_RADIUS + s.radius * 0.82) {
         s.dead = true;
-        score += 150;
+        addScore(150);
         explode(s.x, s.y, 10);
       }
     }
@@ -750,7 +783,7 @@ function drawLifeIcon(x, y) {
   ctx.strokeStyle = skin.color;
   ctx.lineWidth   = 1.2;
   ctx.lineJoin    = 'round';
-  drawShipShape(skin, 0.45);
+  drawShipShape(skin, 0.45 * skin.scale);
   ctx.restore();
 }
 
@@ -765,7 +798,14 @@ function drawHUD() {
   ctx.fillText(`NIVEL ${level}`, W / 2, 26);
 
   for (let i = 0; i < lives; i++)
-    drawLifeIcon(W - 16 - i * 22, 18);
+    drawLifeIcon(W - 16 - i * 22 * SHIP_SKINS[skinIndex].scale, 18);
+
+  if (SHIP_SKINS[skinIndex].scoreMultiplier > 1) {
+    ctx.textAlign = 'right';
+    ctx.fillStyle = SHIP_SKINS[skinIndex].color;
+    ctx.font = 'bold 14px monospace';
+    ctx.fillText(`PUNTOS x${SHIP_SKINS[skinIndex].scoreMultiplier}`, W - 14, 48);
+  }
 
   if (speedTimer > 0) {
     ctx.textAlign = 'left';
