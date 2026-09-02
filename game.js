@@ -288,6 +288,14 @@ class Ship {
     const NOSE = 21;
     const ox = this.x + Math.cos(this.angle) * NOSE;
     const oy = this.y + Math.sin(this.angle) * NOSE;
+    if (tripleShotTimer > 0) {
+      const SPREAD = Math.PI / 12; // 15° → cono total de 30°
+      return [
+        new Bullet(ox, oy, this.angle - SPREAD),
+        new Bullet(ox, oy, this.angle),
+        new Bullet(ox, oy, this.angle + SPREAD),
+      ];
+    }
     return [new Bullet(ox, oy, this.angle)];
   }
 
@@ -391,12 +399,46 @@ class SpeedPowerUp {
   }
 }
 
+// ── Power-up: Triple Shot ─────────────────────────────────────────────────────
+class TripleShotPowerUp {
+  constructor(x, y) {
+    this.x = x;
+    this.y = y;
+    this.radius = 10;
+    this.dead = false;
+    this.life = 10;
+  }
+
+  update(dt) {
+    this.life -= dt;
+    if (this.life <= 0) this.dead = true;
+  }
+
+  draw() {
+    const alpha = this.life < 2 ? 0.3 + 0.7 * (this.life / 2) : 1;
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.strokeStyle = '#f80';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.fillStyle = '#f80';
+    ctx.font = 'bold 14px monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('3', this.x, this.y);
+    ctx.restore();
+  }
+}
+
 // ── Estado del juego ──────────────────────────────────────────────────────────
 let ship, bullets, asteroids, shootingStars, particles, powerUps;
 let score, lives, level;
 let state;      // 'playing' | 'dead' | 'gameover'
 let deadTimer;
-let speedTimer; // tiempo restante del power-up Velocidad
+let speedTimer;      // tiempo restante del power-up Velocidad
+let tripleShotTimer; // tiempo restante del power-up Triple Shot
 let meteorTimer;
 
 function spawnAsteroids(count) {
@@ -422,7 +464,8 @@ function initGame() {
   lives       = 3;
   level       = 1;
   state       = 'playing';
-  speedTimer  = 0;
+  speedTimer    = 0;
+  tripleShotTimer = 0;
   meteorTimer = rand(5, 9);
   spawnAsteroids(4);
 }
@@ -445,6 +488,7 @@ function killShip() {
   ship.dead = true;
   lives--;
   speedTimer = 0;
+  tripleShotTimer = 0;
   if (lives <= 0) {
     state = 'gameover';
   } else {
@@ -506,6 +550,8 @@ function update(dt) {
         newAsteroids.push(...a.split());
         if (Math.random() < 0.2) {
           powerUps.push(new SpeedPowerUp(a.x, a.y));
+        } else if (Math.random() < 0.2) {
+          powerUps.push(new TripleShotPowerUp(a.x, a.y));
         }
       }
     }
@@ -526,10 +572,12 @@ function update(dt) {
   powerUps.forEach(p => p.update(dt));
   powerUps = powerUps.filter(p => !p.dead);
   if (speedTimer > 0) speedTimer -= dt;
+  if (tripleShotTimer > 0) tripleShotTimer -= dt;
   for (const p of powerUps) {
     if (!p.dead && dist(ship, p) < ship.radius + p.radius) {
       p.dead = true;
-      speedTimer = 5;
+      if (p instanceof SpeedPowerUp) speedTimer = 5;
+      if (p instanceof TripleShotPowerUp) tripleShotTimer = 5;
     }
   }
   powerUps = powerUps.filter(p => !p.dead);
@@ -592,6 +640,14 @@ function drawHUD() {
     ctx.fillStyle = '#0ff';
     ctx.font = 'bold 14px monospace';
     ctx.fillText(`VELOCIDAD ${speedTimer.toFixed(1)}s`, 14, 48);
+  }
+
+  if (tripleShotTimer > 0) {
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#f80';
+    ctx.font = 'bold 14px monospace';
+    const y = speedTimer > 0 ? 68 : 48;
+    ctx.fillText(`TRIPLE SHOT ${tripleShotTimer.toFixed(1)}s`, 14, y);
   }
 }
 
