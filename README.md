@@ -29,6 +29,7 @@ Luego visita `http://localhost:3000`.
 | `←` `→`   | Rotar nave |
 | `↑`       | Propulsar  |
 | `Espacio` | Disparar   |
+| `S`       | Cambiar skin de nave |
 
 ## Puntuación
 
@@ -46,3 +47,5 @@ Luego visita `http://localhost:3000`.
 - Partículas de explosión al destruir asteroides
 - Power-up **Velocidad**: duplica la propulsión durante 5 segundos (aparece con 20% de probabilidad al destruir un asteroide)
 - Estrella fugaz: aparece periódicamente, cruza la pantalla a gran velocidad y desaparece con el tiempo
+- 6 skins de nave intercambiables durante la partida: clásica, interceptora, exploradora, Starship, Saturno 5 y transbordador espacial de la NASA
+- La skin elegida se conserva al volver a abrir el juego
