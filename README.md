@@ -46,6 +46,7 @@ Luego visita `http://localhost:3000`.
 - Asteroides se parten en fragmentos más pequeños al ser destruidos
 - Partículas de explosión al destruir asteroides
 - Power-up **Velocidad**: duplica la propulsión durante 5 segundos (aparece con 20% de probabilidad al destruir un asteroide)
+- Power-up **Escudo**: protege la nave durante 6 segundos y destruye asteroides y estrellas fugaces al tocarlos, partiéndolos en cadena y otorgando puntos (sin soltar power-ups). Aparece con 12% de probabilidad al destruir un asteroide
 - Estrella fugaz: aparece periódicamente, cruza la pantalla a gran velocidad y desaparece con el tiempo
 - 6 skins de nave intercambiables durante la partida: clásica, interceptora, exploradora, Starship, Saturno 5 y transbordador espacial de la NASA
 - La skin elegida se conserva al volver a abrir el juego
